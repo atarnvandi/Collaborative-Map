@@ -51,7 +51,7 @@
         // =============================
         // 3. AMBIL DATA DARI GOOGLE SHEETS
         // =============================
-        const SHEETS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS5p7OM6dkZOMm02jolXCnpsUb4F5HGJVnBL1KrSA9Q0oq-deqEckYkkeE6dDWcR1VUQL-DjAyeDP9r/pub?output=csv";
+        const SHEETS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS5p7OM6dkZOMm02jolXCnpsUb4F5HGJVnBL1KrSA9Q0oq-deqEckYkkeE6dDWcR1VUQL-DjAyeDP9r/pub?output=csv&t=" + new Date().getTime();
 
         fetch(SHEETS_URL)
             .then(function (response) {
