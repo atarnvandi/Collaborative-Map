@@ -16,6 +16,38 @@
             height: 100vh;
             width: 100%;
         }
+
+        /* LEGEND */
+        .legend {
+            background: white;
+            padding: 10px 16px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            font-family: Arial, sans-serif;
+            font-size: 13px;
+            line-height: 1.8;
+        }
+
+        .legend h4 {
+            margin: 0 0 6px 0;
+            font-size: 14px;
+            color: #333;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .legend-dot {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 0 0 1px #ccc;
+            flex-shrink: 0;
+        }
     </style>
 </head>
 
@@ -38,7 +70,7 @@
 
 
         // =============================
-        // 2. WARNA BERDASARKAN SNOW INCHES
+        // 2. WARNA BERDASARKAN NILAI
         // =============================
         function getWarna(nilai) {
             if (nilai >= 5) return "red";
@@ -49,7 +81,35 @@
 
 
         // =============================
-        // 3. AMBIL DATA DARI GOOGLE SHEETS
+        // 3. LEGEND
+        // =============================
+        const legend = L.control({ position: "bottomright" });
+
+        legend.onAdd = function () {
+            const div = L.DomUtil.create("div", "legend");
+            div.innerHTML = `
+        <h4>Snow Inches</h4>
+        <div class="legend-item">
+          <div class="legend-dot" style="background: red"></div> Tinggi (≥ 5)
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background: orange"></div> Sedang (≥ 3)
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background: green"></div> Rendah (≥ 1)
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background: gray"></div> Tidak ada data
+        </div>
+      `;
+            return div;
+        };
+
+        legend.addTo(map);
+
+
+        // =============================
+        // 4. AMBIL DATA DARI GOOGLE SHEETS
         // =============================
         const SHEETS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS5p7OM6dkZOMm02jolXCnpsUb4F5HGJVnBL1KrSA9Q0oq-deqEckYkkeE6dDWcR1VUQL-DjAyeDP9r/pub?output=csv&t=" + new Date().getTime();
 
@@ -58,23 +118,18 @@
                 return response.text();
             })
             .then(function (csv) {
-
-                // Pisahkan per baris
                 const baris = csv.split("\n");
 
-                // Mulai dari baris ke-2 (skip header)
                 for (let i = 1; i < baris.length; i++) {
                     const kolom = baris[i].split(",");
 
-                    const nama = kolom[0];  // Kolom A - Name
-                    const lat = parseFloat(kolom[2]);  // Kolom C - Lat
-                    const lng = parseFloat(kolom[3]);  // Kolom D - Lon
-                    const snowInches = parseFloat(kolom[4]);  // Kolom E - Snow inches
+                    const nama = kolom[0];
+                    const lat = parseFloat(kolom[2]);
+                    const lng = parseFloat(kolom[3]);
+                    const snowInches = parseFloat(kolom[4]);
 
-                    // Skip kalau koordinat tidak valid
                     if (isNaN(lat) || isNaN(lng)) continue;
 
-                    // Buat simbol
                     const lingkaran = L.circleMarker([lat, lng], {
                         radius: 10,
                         fillColor: getWarna(snowInches),
@@ -83,7 +138,6 @@
                         fillOpacity: 0.8
                     });
 
-                    // Popup info
                     lingkaran.bindPopup(`
             <b>${nama}</b><br>
             Snow inches: ${snowInches}
