@@ -4,232 +4,699 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Collaborative Map</title>
+    <title>Sampah Liar Makassar</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap"
+        rel="stylesheet">
     <style>
-        body {
+        :root {
+            --green: #0d6712;
+            --green-light: #e8f5e9;
+            --green-mid: #43a047;
+            --orange: #f57c00;
+            --red: #c62828;
+            --bg: #eef2ee;
+            --card: #ffffff;
+            --text: #1a1f1a;
+            --muted: #8a9a8a;
+            --border: #e0e8e0;
+            --radius: 18px;
+            --shadow: 0 2px 20px rgba(13, 103, 18, 0.08);
+            --shadow-lg: 0 8px 40px rgba(13, 103, 18, 0.12);
+        }
+
+        * {
+            box-sizing: border-box;
             margin: 0;
             padding: 0;
         }
 
-        #map {
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg);
             height: 100vh;
-            width: 100%;
+            overflow: hidden;
         }
 
-        /* FILTER */
-        #filter {
-            position: absolute;
-            top: 16px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 1000;
+        /* ── LAYOUT ── */
+        #app {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            grid-template-rows: 1fr;
+            height: 100vh;
+            gap: 0;
+        }
+
+        /* ── SIDEBAR ── */
+        #sidebar {
+            background: var(--card);
             display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border-right: 1px solid var(--border);
+            z-index: 10;
+        }
+
+        /* Brand */
+        #brand {
+            padding: 28px 24px 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        #brand .eyebrow {
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--green);
+            margin-bottom: 6px;
+        }
+
+        #brand h1 {
+            font-family: 'DM Serif Display', serif;
+            font-size: 22px;
+            color: var(--text);
+            line-height: 1.2;
+        }
+
+        #brand p {
+            font-size: 12px;
+            color: var(--muted);
+            margin-top: 4px;
+            line-height: 1.5;
+        }
+
+        /* Stats row */
+        #stats-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            padding: 16px 24px;
             gap: 8px;
-            background: white;
-            padding: 8px 12px;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            border-bottom: 1px solid var(--border);
         }
 
-        #filter button {
-            padding: 6px 14px;
-            border: none;
-            border-radius: 6px;
+        .stat {
+            text-align: center;
+            padding: 10px 6px;
+            background: var(--bg);
+            border-radius: 12px;
+        }
+
+        .stat-num {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--green);
+            display: block;
+        }
+
+        .stat-label {
+            font-size: 9px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 1px;
+            display: block;
+        }
+
+        /* Filter sections */
+        #filters {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        #filters::-webkit-scrollbar {
+            width: 0;
+        }
+
+        .filter-group {}
+
+        .filter-group-label {
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-bottom: 10px;
+        }
+
+        .filter-items {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .filter-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: 12px;
             cursor: pointer;
+            transition: all 0.15s ease;
+            border: 1.5px solid transparent;
+            background: var(--bg);
+            user-select: none;
+        }
+
+        .filter-item:hover {
+            background: var(--green-light);
+        }
+
+        .filter-item.active {
+            background: white;
+            border-color: var(--border);
+            box-shadow: var(--shadow);
+        }
+
+        .filter-item.active.parah {
+            border-color: #ffcdd2;
+        }
+
+        .filter-item.active.sedang {
+            border-color: #ffe0b2;
+        }
+
+        .filter-item.active.ringan {
+            border-color: #c8e6c9;
+        }
+
+        .filter-item.active.belum {
+            border-color: #ffcdd2;
+        }
+
+        .filter-item.active.proses {
+            border-color: #ffe0b2;
+        }
+
+        .filter-item.active.selesai {
+            border-color: #c8e6c9;
+        }
+
+        .fi-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .fi-label {
             font-size: 13px;
-            font-weight: bold;
-            opacity: 0.5;
-            transition: opacity 0.2s;
+            font-weight: 500;
+            color: var(--text);
+            flex: 1;
         }
 
-        #filter button.active {
-            opacity: 1;
+        .fi-count {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--muted);
+            background: var(--bg);
+            padding: 2px 8px;
+            border-radius: 20px;
         }
 
-        #filter button#btn-semua {
-            background: #eee;
-            color: #333;
+        .filter-item.active .fi-count {
+            background: var(--green-light);
+            color: var(--green);
         }
 
-        #filter button#btn-tinggi {
-            background: red;
+        /* Divider */
+        .sidebar-divider {
+            height: 1px;
+            background: var(--border);
+            margin: 0 24px;
+        }
+
+        /* Reset btn */
+        #btn-reset {
+            margin: 16px 24px 20px;
+            padding: 11px;
+            border: 1.5px solid var(--border);
+            border-radius: 12px;
+            background: white;
+            color: var(--green);
+            font-family: 'DM Sans', sans-serif;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+            letter-spacing: 0.2px;
+        }
+
+        #btn-reset:hover {
+            background: var(--green);
             color: white;
+            border-color: var(--green);
         }
 
-        #filter button#btn-sedang {
-            background: orange;
-            color: white;
+        /* ── MAP AREA ── */
+        #map-area {
+            position: relative;
+            padding: 20px;
+            background: var(--bg);
         }
 
-        #filter button#btn-rendah {
-            background: green;
-            color: white;
+        #map {
+            width: 100%;
+            height: 100%;
+            border-radius: var(--radius);
+            overflow: hidden;
+            box-shadow: var(--shadow-lg);
         }
 
-        /* LEGEND */
+        /* ── FLOATING BADGE ── */
+        #badge {
+            position: absolute;
+            top: 36px;
+            right: 36px;
+            z-index: 1000;
+            background: white;
+            border: 1.5px solid var(--border);
+            border-radius: 30px;
+            padding: 8px 16px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text);
+            box-shadow: var(--shadow);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        #badge .dot-live {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--green);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: 0.5;
+                transform: scale(1.3);
+            }
+        }
+
+        /* ── LEGEND (floating) ── */
         .legend {
             background: white;
-            padding: 10px 16px;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-            font-family: Arial, sans-serif;
-            font-size: 13px;
-            line-height: 1.8;
+            border: 1.5px solid var(--border);
+            padding: 14px 16px;
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+            font-family: 'DM Sans', sans-serif;
+            min-width: 150px;
         }
 
-        .legend h4 {
-            margin: 0 0 6px 0;
-            font-size: 14px;
-            color: #333;
+        .legend-title {
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-bottom: 10px;
         }
 
-        .legend-item {
+        .legend-row {
             display: flex;
             align-items: center;
             gap: 8px;
+            padding: 3px 0;
+            font-size: 12px;
+            color: var(--text);
         }
 
         .legend-dot {
-            width: 14px;
-            height: 14px;
+            width: 10px;
+            height: 10px;
             border-radius: 50%;
-            border: 2px solid white;
-            box-shadow: 0 0 0 1px #ccc;
             flex-shrink: 0;
+        }
+
+        /* ── LOADING ── */
+        #loading {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            background: rgba(238, 242, 238, 0.8);
+            backdrop-filter: blur(4px);
+            border-radius: var(--radius);
+        }
+
+        .loading-card {
+            background: white;
+            padding: 20px 28px;
+            border-radius: 16px;
+            box-shadow: var(--shadow-lg);
+            text-align: center;
+        }
+
+        .loading-card .spinner {
+            width: 28px;
+            height: 28px;
+            border: 3px solid var(--border);
+            border-top-color: var(--green);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .loading-card p {
+            font-size: 13px;
+            color: var(--muted);
+            font-weight: 500;
+        }
+
+        /* Leaflet overrides */
+        .leaflet-control-zoom {
+            border: 1.5px solid var(--border) !important;
+            border-radius: 12px !important;
+            overflow: hidden;
+            box-shadow: var(--shadow) !important;
+        }
+
+        .leaflet-control-zoom a {
+            font-family: 'DM Sans', sans-serif !important;
+            color: var(--text) !important;
+            background: white !important;
+        }
+
+        .leaflet-control-zoom a:hover {
+            background: var(--green-light) !important;
+        }
+
+        .leaflet-popup-content-wrapper {
+            border-radius: 14px !important;
+            box-shadow: var(--shadow-lg) !important;
+            border: 1.5px solid var(--border) !important;
+            font-family: 'DM Sans', sans-serif !important;
+        }
+
+        .leaflet-popup-tip {
+            display: none;
+        }
+
+        .leaflet-attribution-flag {
+            display: none !important;
         }
     </style>
 </head>
 
 <body>
 
-    <!-- TOMBOL FILTER -->
-    <div id="filter">
-        <button id="btn-semua" class="active" onclick="filterData('semua')">Semua</button>
-        <button id="btn-tinggi" onclick="filterData('tinggi')">Tinggi</button>
-        <button id="btn-sedang" onclick="filterData('sedang')">Sedang</button>
-        <button id="btn-rendah" onclick="filterData('rendah')">Rendah</button>
+    <div id="app">
+
+        <!-- SIDEBAR -->
+        <div id="sidebar">
+
+            <div id="brand">
+                <div class="eyebrow">Makassar · 2026</div>
+                <h1>Peta Sampah<br>Liar</h1>
+                <p>Laporan kolaboratif masyarakat Kota Makassar</p>
+            </div>
+
+            <div id="stats-row">
+                <div class="stat">
+                    <span class="stat-num" id="stat-total">—</span>
+                    <span class="stat-label">Total</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-num" id="stat-parah" style="color:var(--red)">—</span>
+                    <span class="stat-label">Parah</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-num" id="stat-selesai">—</span>
+                    <span class="stat-label">Selesai</span>
+                </div>
+            </div>
+
+            <div id="filters">
+
+                <div class="filter-group">
+                    <div class="filter-group-label">Tingkat Keparahan</div>
+                    <div class="filter-items">
+                        <div class="filter-item active parah" data-type="tingkat" data-value="Parah"
+                            onclick="toggleFilter(this)">
+                            <div class="fi-dot" style="background:#c62828"></div>
+                            <span class="fi-label">Parah</span>
+                            <span class="fi-count" id="count-parah">0</span>
+                        </div>
+                        <div class="filter-item active sedang" data-type="tingkat" data-value="Sedang"
+                            onclick="toggleFilter(this)">
+                            <div class="fi-dot" style="background:#f57c00"></div>
+                            <span class="fi-label">Sedang</span>
+                            <span class="fi-count" id="count-sedang">0</span>
+                        </div>
+                        <div class="filter-item active ringan" data-type="tingkat" data-value="Ringan"
+                            onclick="toggleFilter(this)">
+                            <div class="fi-dot" style="background:#2e7d32"></div>
+                            <span class="fi-label">Ringan</span>
+                            <span class="fi-count" id="count-ringan">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="filter-group">
+                    <div class="filter-group-label">Status Penanganan</div>
+                    <div class="filter-items">
+                        <div class="filter-item active belum" data-type="status" data-value="Belum"
+                            onclick="toggleFilter(this)">
+                            <div class="fi-dot" style="background:#c62828"></div>
+                            <span class="fi-label">Belum Ditangani</span>
+                            <span class="fi-count" id="count-belum">0</span>
+                        </div>
+                        <div class="filter-item active proses" data-type="status" data-value="Proses"
+                            onclick="toggleFilter(this)">
+                            <div class="fi-dot" style="background:#f57c00"></div>
+                            <span class="fi-label">Dalam Proses</span>
+                            <span class="fi-count" id="count-proses">0</span>
+                        </div>
+                        <div class="filter-item active selesai" data-type="status" data-value="Selesai"
+                            onclick="toggleFilter(this)">
+                            <div class="fi-dot" style="background:#2e7d32"></div>
+                            <span class="fi-label">Selesai</span>
+                            <span class="fi-count" id="count-selesai">0</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="sidebar-divider"></div>
+            <button id="btn-reset" onclick="resetFilter()">↺ Reset Semua Filter</button>
+
+        </div>
+
+        <!-- MAP AREA -->
+        <div id="map-area">
+            <div id="map"></div>
+
+            <div id="loading">
+                <div class="loading-card">
+                    <div class="spinner"></div>
+                    <p>Memuat data titik sampah...</p>
+                </div>
+            </div>
+
+            <div id="badge">
+                <div class="dot-live"></div>
+                <span id="badge-text">Live · memuat...</span>
+            </div>
+        </div>
+
     </div>
 
-    <div id="map"></div>
-
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
     <script>
-        // =============================
-        // 1. BUAT PETA
-        // =============================
-        const map = L.map('map').setView([-7.0, 112.0], 8);
 
+        // ── MAP ──
+        const map = L.map('map', { zoomControl: false }).setView([-5.1477, 119.4327], 13);
         L.tileLayer(
             'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
-            { attribution: 'Tiles © Esri' }
+            { attribution: '© Esri' }
         ).addTo(map);
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-
-        // =============================
-        // 2. WARNA & KATEGORI
-        // =============================
-        function getWarna(nilai) {
-            if (nilai >= 5) return "red";
-            if (nilai >= 3) return "orange";
-            if (nilai >= 1) return "green";
-            return "gray";
-        }
-
-        function getKategori(nilai) {
-            if (nilai >= 5) return "tinggi";
-            if (nilai >= 3) return "sedang";
-            if (nilai >= 1) return "rendah";
-            return "tidak ada";
-        }
-
-
-        // =============================
-        // 3. LEGEND
-        // =============================
-        const legend = L.control({ position: "bottomright" });
+        // ── LEGEND ──
+        const legend = L.control({ position: 'bottomright' });
         legend.onAdd = function () {
-            const div = L.DomUtil.create("div", "legend");
-            div.innerHTML = `
-        <h4>Snow Inches</h4>
-        <div class="legend-item"><div class="legend-dot" style="background:red"></div> Tinggi (≥ 5)</div>
-        <div class="legend-item"><div class="legend-dot" style="background:orange"></div> Sedang (≥ 3)</div>
-        <div class="legend-item"><div class="legend-dot" style="background:green"></div> Rendah (≥ 1)</div>
-        <div class="legend-item"><div class="legend-dot" style="background:gray"></div> Tidak ada data</div>
-      `;
-            return div;
+            const d = L.DomUtil.create('div', 'legend');
+            d.innerHTML = `
+      <div class="legend-title">Keparahan</div>
+      <div class="legend-row"><div class="legend-dot" style="background:#c62828"></div>Parah</div>
+      <div class="legend-row"><div class="legend-dot" style="background:#f57c00"></div>Sedang</div>
+      <div class="legend-row"><div class="legend-dot" style="background:#2e7d32"></div>Ringan</div>
+    `;
+            return d;
         };
         legend.addTo(map);
 
-
-        // =============================
-        // 4. SIMPAN SEMUA MARKER
-        // =============================
-        let semuaMarker = []; // menyimpan semua titik + kategorinya
-
-
-        // =============================
-        // 5. FUNGSI FILTER
-        // =============================
-        function filterData(kategori) {
-            // Update tombol aktif
-            document.querySelectorAll("#filter button").forEach(btn => btn.classList.remove("active"));
-            document.getElementById("btn-" + kategori).classList.add("active");
-
-            // Tampilkan/sembunyikan marker
-            semuaMarker.forEach(function (item) {
-                if (kategori === "semua" || item.kategori === kategori) {
-                    item.marker.addTo(map);
-                } else {
-                    map.removeLayer(item.marker);
-                }
-            });
+        // ── HELPERS ──
+        function getWarna(t) {
+            if (t === 'Parah') return '#c62828';
+            if (t === 'Sedang') return '#f57c00';
+            if (t === 'Ringan') return '#2e7d32';
+            return '#9e9e9e';
         }
 
+        function parseCSVRow(row) {
+            const res = []; let cur = '', inQ = false;
+            for (let i = 0; i < row.length; i++) {
+                const c = row[i];
+                if (c === '"') { inQ = !inQ; }
+                else if (c === ',' && !inQ) { res.push(cur.trim()); cur = ''; }
+                else { cur += c; }
+            }
+            res.push(cur.trim());
+            return res;
+        }
 
-        // =============================
-        // 6. AMBIL DATA DARI GOOGLE SHEETS
-        // =============================
+        function statusBadge(s) {
+            const colors = { Belum: '#c62828', Proses: '#f57c00', Selesai: '#2e7d32' };
+            const bg = { Belum: '#ffebee', Proses: '#fff3e0', Selesai: '#e8f5e9' };
+            const c = colors[s] || '#777';
+            const b = bg[s] || '#eee';
+            return `<span style="background:${b};color:${c};font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;letter-spacing:0.5px">${s}</span>`;
+        }
+
+        // ── FILTER ──
+        let semuaMarker = [];
+        let filterAktif = {
+            tingkat: ['Parah', 'Sedang', 'Ringan'],
+            status: ['Belum', 'Proses', 'Selesai']
+        };
+
+        function toggleFilter(el) {
+            const type = el.dataset.type;
+            const value = el.dataset.value;
+            const arr = filterAktif[type];
+            const idx = arr.indexOf(value);
+
+            if (idx > -1) {
+                if (arr.length === 1) return;
+                arr.splice(idx, 1);
+                el.classList.remove('active');
+            } else {
+                arr.push(value);
+                el.classList.add('active');
+            }
+            applyFilter();
+        }
+
+        function resetFilter() {
+            filterAktif = {
+                tingkat: ['Parah', 'Sedang', 'Ringan'],
+                status: ['Belum', 'Proses', 'Selesai']
+            };
+            document.querySelectorAll('.filter-item').forEach(el => el.classList.add('active'));
+            applyFilter();
+        }
+
+        function applyFilter() {
+            let visible = 0;
+            semuaMarker.forEach(item => {
+                const show = filterAktif.tingkat.includes(item.tingkat) &&
+                    filterAktif.status.includes(item.status);
+                if (show) { item.marker.addTo(map); visible++; }
+                else { map.removeLayer(item.marker); }
+            });
+            document.getElementById('badge-text').innerText = `Live · ${visible} titik`;
+        }
+
+        // ── FETCH ──
         const SHEETS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS5p7OM6dkZOMm02jolXCnpsUb4F5HGJVnBL1KrSA9Q0oq-deqEckYkkeE6dDWcR1VUQL-DjAyeDP9r/pub?output=csv&t=" + new Date().getTime();
 
         fetch(SHEETS_URL)
-            .then(function (response) { return response.text(); })
-            .then(function (csv) {
-                const baris = csv.split("\n");
+            .then(r => r.text())
+            .then(csv => {
+                document.getElementById('loading').style.display = 'none';
+
+                const baris = csv.split('\n');
+                const counts = { Parah: 0, Sedang: 0, Ringan: 0, Belum: 0, Proses: 0, Selesai: 0 };
 
                 for (let i = 1; i < baris.length; i++) {
-                    const kolom = baris[i].split(",");
-                    const nama = kolom[0];
-                    const lat = parseFloat(kolom[2]);
-                    const lng = parseFloat(kolom[3]);
-                    const snowInches = parseFloat(kolom[4]);
+                    const k = parseCSVRow(baris[i]);
+                    if (k.length < 8) continue;
+
+                    const nama = k[0];
+                    const lat = parseFloat(k[2]);
+                    const lng = parseFloat(k[3]);
+                    const tingkat = k[4];
+                    const deskripsi = k[5];
+                    const tanggal = k[6];
+                    const status = k[7];
 
                     if (isNaN(lat) || isNaN(lng)) continue;
 
-                    const kategori = getKategori(snowInches);
+                    if (counts[tingkat] !== undefined) counts[tingkat]++;
+                    if (counts[status] !== undefined) counts[status]++;
 
                     const marker = L.circleMarker([lat, lng], {
-                        radius: 10,
-                        fillColor: getWarna(snowInches),
-                        color: "white",
+                        radius: 8,
+                        fillColor: getWarna(tingkat),
+                        color: 'white',
                         weight: 2,
-                        fillOpacity: 0.8
+                        fillOpacity: 0.9
                     });
 
-                    marker.bindPopup(`<b>${nama}</b><br>Snow inches: ${snowInches}`);
-                    marker.addTo(map);
+                    marker.bindPopup(`
+          <div style="font-family:'DM Sans',sans-serif;min-width:200px;padding:4px 2px">
+            <div style="font-size:13px;font-weight:700;color:#1a1f1a;margin-bottom:8px">${nama}</div>
+            <div style="font-size:12px;color:#555;line-height:1.8">
+              <div>🗑️ <b>Tingkat</b> &nbsp;${tingkat}</div>
+              <div>📋 <b>Keterangan</b> &nbsp;${deskripsi}</div>
+              <div>📅 <b>Tanggal</b> &nbsp;${tanggal}</div>
+              <div style="margin-top:6px">Status &nbsp;${statusBadge(status)}</div>
+            </div>
+          </div>
+        `);
 
-                    // Simpan marker + kategorinya
-                    semuaMarker.push({ marker, kategori });
+                    marker.addTo(map);
+                    semuaMarker.push({ marker, tingkat, status });
                 }
+
+                // Update UI
+                document.getElementById('count-parah').innerText = counts.Parah;
+                document.getElementById('count-sedang').innerText = counts.Sedang;
+                document.getElementById('count-ringan').innerText = counts.Ringan;
+                document.getElementById('count-belum').innerText = counts.Belum;
+                document.getElementById('count-proses').innerText = counts.Proses;
+                document.getElementById('count-selesai').innerText = counts.Selesai;
+
+                document.getElementById('stat-total').innerText = semuaMarker.length;
+                document.getElementById('stat-parah').innerText = counts.Parah;
+                document.getElementById('stat-selesai').innerText = counts.Selesai;
+                document.getElementById('badge-text').innerText = `Live · ${semuaMarker.length} titik`;
             })
-            .catch(function (error) {
-                console.error("Gagal ambil data:", error);
+            .catch(err => {
+                document.getElementById('loading').innerHTML = '<div class="loading-card"><p>❌ Gagal memuat data</p></div>';
+                console.error(err);
             });
 
     </script>
-
 </body>
 
 </html>
