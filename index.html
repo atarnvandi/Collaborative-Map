@@ -5,10 +5,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Collaborative Map</title>
-
-    <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-
     <style>
         body {
             margin: 0;
@@ -26,16 +23,14 @@
 
     <div id="map"></div>
 
-    <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <script>
         // =============================
         // 1. BUAT PETA
         // =============================
-        const map = L.map('map').setView([-2.5, 118.0], 5);
+        const map = L.map('map').setView([-7.0, 112.0], 8);
 
-        // Pasang basemap ESRI
         L.tileLayer(
             'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
             { attribution: 'Tiles © Esri' }
@@ -43,45 +38,63 @@
 
 
         // =============================
-        // 2. DATA DUMMY
-        // =============================
-        const data = [
-            { lat: -6.200, lng: 106.816, nilai: "tinggi", nama: "Lokasi Jakarta" },
-            { lat: -7.250, lng: 112.750, nilai: "sedang", nama: "Lokasi Surabaya" },
-            { lat: -8.650, lng: 115.216, nilai: "rendah", nama: "Lokasi Bali" }
-        ];
-
-
-        // =============================
-        // 3. WARNA BERDASARKAN NILAI
+        // 2. WARNA BERDASARKAN SNOW INCHES
         // =============================
         function getWarna(nilai) {
-            if (nilai === "tinggi") return "red";
-            if (nilai === "sedang") return "orange";
-            if (nilai === "rendah") return "green";
+            if (nilai >= 5) return "red";
+            if (nilai >= 3) return "orange";
+            if (nilai >= 1) return "green";
             return "gray";
         }
 
 
         // =============================
-        // 4. TAMPILKAN SIMBOL DI PETA
+        // 3. AMBIL DATA DARI GOOGLE SHEETS
         // =============================
-        data.forEach(function (item) {
-            const lingkaran = L.circleMarker([item.lat, item.lng], {
-                radius: 10,
-                fillColor: getWarna(item.nilai),
-                color: "white",
-                weight: 2,
-                fillOpacity: 0.8
+        const SHEETS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS5p7OM6dkZOMm02jolXCnpsUb4F5HGJVnBL1KrSA9Q0oq-deqEckYkkeE6dDWcR1VUQL-DjAyeDP9r/pub?output=csv";
+
+        fetch(SHEETS_URL)
+            .then(function (response) {
+                return response.text();
+            })
+            .then(function (csv) {
+
+                // Pisahkan per baris
+                const baris = csv.split("\n");
+
+                // Mulai dari baris ke-2 (skip header)
+                for (let i = 1; i < baris.length; i++) {
+                    const kolom = baris[i].split(",");
+
+                    const nama = kolom[0];  // Kolom A - Name
+                    const lat = parseFloat(kolom[2]);  // Kolom C - Lat
+                    const lng = parseFloat(kolom[3]);  // Kolom D - Lon
+                    const snowInches = parseFloat(kolom[4]);  // Kolom E - Snow inches
+
+                    // Skip kalau koordinat tidak valid
+                    if (isNaN(lat) || isNaN(lng)) continue;
+
+                    // Buat simbol
+                    const lingkaran = L.circleMarker([lat, lng], {
+                        radius: 10,
+                        fillColor: getWarna(snowInches),
+                        color: "white",
+                        weight: 2,
+                        fillOpacity: 0.8
+                    });
+
+                    // Popup info
+                    lingkaran.bindPopup(`
+            <b>${nama}</b><br>
+            Snow inches: ${snowInches}
+          `);
+
+                    lingkaran.addTo(map);
+                }
+            })
+            .catch(function (error) {
+                console.error("Gagal ambil data:", error);
             });
-
-            lingkaran.bindPopup(`
-        <b>${item.nama}</b><br>
-        Nilai: ${item.nilai}
-      `);
-
-            lingkaran.addTo(map);
-        });
 
     </script>
 
