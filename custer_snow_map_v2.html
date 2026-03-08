@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Custer County Snow Report</title>
+
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<!-- Leaflet JS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<!-- html2canvas for JPEG export -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<!-- Leaflet-easyPrint for better map export -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dom-to-image/2.6.0/dom-to-image.min.js"></script>
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Share+Tech+Mono&display=swap');
+
+  :root {
+    --bg:      #0d1117;
+    --panel:   #161b22;
+    --border:  #30363d;
+    --accent:  #58a6ff;
+    --text:    #c9d1d9;
+    --subtle:  #8b949e;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── HEADER ── */
+  #header {
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 16px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+    z-index: 1000;
+  }
+
+  #header h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.5rem;
+    letter-spacing: 3px;
+    color: #fff;
+    text-shadow: 0 0 12px rgba(88,166,255,0.4);
+    margin-right: 8px;
+    white-space: nowrap;
+  }
+
+  .field-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .field-label {
+    font-size: 0.65rem;
+    color: var(--subtle);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  input[type="text"] {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.75rem;
+    padding: 5px 10px;
+    border-radius: 4px;
+    outline: none;
+    width: 260px;
+  }
+  input[type="text"]:focus { border-color: var(--accent); }
+
+  .btn {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 1px;
+    padding: 6px 14px;
+    border: 1px solid;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .btn-blue  { background:#0d2840; color:#58a6ff; border-color:#1f6feb; }
+  .btn-blue:hover  { background:#1f3a55; }
+  .btn-green { background:#0d2a14; color:#56d364; border-color:#238636; }
+  .btn-green:hover { background:#1a3d20; }
+  .btn-purple{ background:#1e1035; color:#bc8cff; border-color:#6e40c9; }
+  .btn-purple:hover{ background:#2d1a50; }
+
+  /* ── SHEET TABS ── */
+  #tabs-row {
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 6px 16px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    flex-shrink: 0;
+    min-height: 36px;
+  }
+  .tab-label { font-size:0.6rem; color:var(--subtle); margin-right:4px; text-transform:uppercase; letter-spacing:1px; }
+  .sheet-tab {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.68rem;
+    padding: 3px 12px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--subtle);
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: 0.5px;
+  }
+  .sheet-tab:hover { border-color: var(--accent); color: #fff; }
+  .sheet-tab.active { background: #1f3a55; border-color: var(--accent); color: #fff; }
+
+  /* ── MAP AREA ── */
+  #map-container {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+  }
+
+  #map {
+    width: 100%;
+    height: 100%;
+  }
+
+  /* ── LEGEND (bottom-left over map) ── */
+  #legend {
+    position: absolute;
+    bottom: 30px;
+    left: 10px;
+    z-index: 999;
+    background: rgba(13,17,23,0.88);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 12px;
+    backdrop-filter: blur(4px);
+  }
+  #legend h4 {
+    font-family:'Bebas Neue',sans-serif;
+    letter-spacing:2px;
+    font-size:0.8rem;
+    color:#fff;
+    margin-bottom:6px;
+  }
+  .leg-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 3px;
+    font-size: 0.68rem;
+  }
+  .leg-dot {
+    width: 22px;
+    height: 18px;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.7rem;
+  }
+
+  /* ── STATUS BAR ── */
+  #status-bar {
+    background: var(--panel);
+    border-top: 1px solid var(--border);
+    padding: 4px 16px;
+    font-size: 0.65rem;
+    color: var(--subtle);
+    letter-spacing: 0.5px;
+    flex-shrink: 0;
+    min-height: 22px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .spinner {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border: 1.5px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── GRID LABEL STYLING on map ── */
+  .grid-col-label, .grid-row-label {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+  .grid-col-label div, .grid-row-label div {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 13px;
+    color: rgba(255,255,255,0.85);
+    text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+    letter-spacing: 1px;
+    pointer-events: none;
+  }
+
+  /* ── SNOW MARKER STYLING ── */
+  .snow-marker-icon {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+  .snow-label {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 15px;
+    font-weight: bold;
+    text-shadow:
+      -1px -1px 0 rgba(0,0,0,0.9),
+       1px -1px 0 rgba(0,0,0,0.9),
+      -1px  1px 0 rgba(0,0,0,0.9),
+       1px  1px 0 rgba(0,0,0,0.9);
+    pointer-events: none;
+    white-space: nowrap;
+  }
+
+  /* export overlay */
+  #export-title {
+    display: none;
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    z-index: 2000;
+    background: rgba(0,0,0,0.85);
+    color: #fff;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.6rem;
+    letter-spacing: 3px;
+    text-align: center;
+    padding: 10px;
+    pointer-events: none;
+  }
+
+  /* info panel */
+  #info-panel {
+    display: none;
+    position: absolute;
+    top: 10px; right: 10px;
+    z-index: 999;
+    background: rgba(13,17,23,0.92);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px 16px;
+    min-width: 220px;
+    backdrop-filter: blur(4px);
+    font-size:0.72rem;
+  }
+  #info-panel h4 { font-family:'Bebas Neue',sans-serif; letter-spacing:2px; margin-bottom:6px; color:#fff; }
+  #info-panel .info-row { display:flex; justify-content:space-between; gap:12px; margin-bottom:3px; }
+  #info-panel .info-val { font-weight:bold; }
+  #info-close { position:absolute; top:8px; right:10px; cursor:pointer; color:var(--subtle); font-size:1rem; }
+  #info-close:hover { color:#fff; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div id="header">
+  <h1>❄ CUSTER COUNTY SNOW REPORT</h1>
+  <div class="field-group">
+    <span class="field-label">Sheet ID:</span>
+    <input type="text" id="sheet-id" placeholder="Google Spreadsheet ID">
+  </div>
+  <button class="btn btn-blue"   onclick="loadSheets()">Load</button>
+  <button class="btn btn-purple" onclick="loadData()">↻ Refresh</button>
+  <button class="btn btn-green"  onclick="exportJPEG()">⬇ Export JPEG</button>
+</div>
+
+<!-- SHEET TABS -->
+<div id="tabs-row">
+  <span class="tab-label">Storm:</span>
+  <span id="tabs-placeholder" style="font-size:0.65rem;color:var(--subtle);">Load a spreadsheet to see storm tabs</span>
+</div>
+
+<!-- MAP -->
+<div id="map-container">
+  <div id="map"></div>
+  <div id="export-title"></div>
+
+  <!-- LEGEND -->
+  <div id="legend">
+    <h4>Snow Depth</h4>
+    <div class="leg-row"><div class="leg-dot" style="background:#7B2FBE;color:#fff;">3</div><span>0–3"&nbsp;&nbsp;2WD</span></div>
+    <div class="leg-row"><div class="leg-dot" style="background:#2980b9;color:#fff;">7</div><span>4–7"&nbsp;&nbsp;AWD</span></div>
+    <div class="leg-dot" style="display:none"></div>
+    <div class="leg-row"><div class="leg-dot" style="background:#16a085;color:#fff;">11</div><span>8–11"&nbsp;4WD Hi</span></div>
+    <div class="leg-row"><div class="leg-dot" style="background:#27ae60;color:#fff;">15</div><span>12–15" 4WD Lo</span></div>
+    <div class="leg-row"><div class="leg-dot" style="background:#f39c12;color:#000;">24</div><span>16–24" Tractor!</span></div>
+    <div class="leg-row"><div class="leg-dot" style="background:#d35400;color:#fff;">30</div><span>25–30" Yer Skrood!</span></div>
+    <div class="leg-row"><div class="leg-dot" style="background:#c0392b;color:#fff;">30+</div><span>30+"&nbsp;&nbsp;See Ya June!</span></div>
+  </div>
+
+  <!-- INFO PANEL (click marker) -->
+  <div id="info-panel">
+    <span id="info-close" onclick="document.getElementById('info-panel').style.display='none'">✕</span>
+    <h4>Report</h4>
+    <div class="info-row"><span>Name:</span><span class="info-val" id="ip-name"></span></div>
+    <div class="info-row"><span>Snow:</span><span class="info-val" id="ip-snow"></span></div>
+    <div class="info-row"><span>Grid:</span><span class="info-val" id="ip-grid"></span></div>
+    <div class="info-row"><span>Coords:</span><span class="info-val" id="ip-coords"></span></div>
+  </div>
+</div>
+
+<!-- STATUS BAR -->
+<div id="status-bar">
+  <span id="status-text">Enter your Google Sheet ID and click Load.</span>
+  <span id="status-count" style="margin-left:auto;"></span>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════
+// CUSTER COUNTY BOUNDS & GRID DEFINITION
+// ═══════════════════════════════════════════════════
+// Actual Custer County, Colorado bounds (WGS84)
+const COUNTY_BOUNDS = {
+  north: 38.2667,
+  south: 37.9000,
+  west:  -105.6500,
+  east:  -105.0500
+};
+
+const COLS = ['A','B','C','D','E','F','G','H','I','J','K','L','M','N']; // 14 cols
+const ROWS = 10;
+
+// Grid lines in lat/lng
+const colStep = (COUNTY_BOUNDS.east  - COUNTY_BOUNDS.west)  / COLS.length;
+const rowStep = (COUNTY_BOUNDS.north - COUNTY_BOUNDS.south) / ROWS;
+
+function gridCellCenter(colLetter, rowNum) {
+  const ci = COLS.indexOf(colLetter.toUpperCase());
+  const ri = parseInt(rowNum) - 1;
+  const lng = COUNTY_BOUNDS.west  + (ci + 0.5) * colStep;
+  const lat = COUNTY_BOUNDS.north - (ri + 0.5) * rowStep;
+  return [lat, lng];
+}
+
+function latLngToGrid(lat, lng) {
+  const ci = Math.floor((lng - COUNTY_BOUNDS.west)  / colStep);
+  const ri = Math.floor((COUNTY_BOUNDS.north - lat) / rowStep);
+  const col = COLS[Math.min(Math.max(ci, 0), COLS.length - 1)];
+  const row = Math.min(Math.max(ri + 1, 1), ROWS);
+  return { col, row };
+}
+
+// ═══════════════════════════════════════════════════
+// COLOR SCALE
+// ═══════════════════════════════════════════════════
+function snowColor(inches) {
+  if (inches <=  3) return '#9B59B6';
+  if (inches <=  7) return '#2980B9';
+  if (inches <= 11) return '#16A085';
+  if (inches <= 15) return '#27AE60';
+  if (inches <= 24) return '#F39C12';
+  if (inches <= 30) return '#D35400';
+  return '#C0392B';
+}
+
+// ═══════════════════════════════════════════════════
+// INIT MAP
+// ═══════════════════════════════════════════════════
+const map = L.map('map', {
+  center: [38.09, -105.36],
+  zoom: 10,
+  zoomControl: true,
+  attributionControl: true
+});
+
+// ESRI World Imagery (satellite) basemap — free, no API key needed
+L.tileLayer(
+  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  {
+    attribution: 'Tiles © Esri — Source: Esri, USGS, NOAA',
+    maxZoom: 18
+  }
+).addTo(map);
+
+// ESRI roads/labels overlay on top of satellite
+L.tileLayer(
+  'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}',
+  { attribution: '', maxZoom: 18, opacity: 0.7 }
+).addTo(map);
+
+// Label overlay
+L.tileLayer(
+  'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+  { attribution: '', maxZoom: 18, opacity: 0.8 }
+).addTo(map);
+
+// ═══════════════════════════════════════════════════
+// STATIC GRID OVERLAY (SVG layer)
+// ═══════════════════════════════════════════════════
+const gridLayer = L.layerGroup().addTo(map);
+
+function drawGrid() {
+  gridLayer.clearLayers();
+
+  const gridStyle = { color: 'rgba(255,255,255,0.35)', weight: 0.8, dashArray: '4,4', fill: false };
+
+  // Vertical lines (columns A–N)
+  for (let c = 0; c <= COLS.length; c++) {
+    const lng = COUNTY_BOUNDS.west + c * colStep;
+    L.polyline([
+      [COUNTY_BOUNDS.north, lng],
+      [COUNTY_BOUNDS.south, lng]
+    ], gridStyle).addTo(gridLayer);
+  }
+
+  // Horizontal lines (rows 1–10)
+  for (let r = 0; r <= ROWS; r++) {
+    const lat = COUNTY_BOUNDS.north - r * rowStep;
+    L.polyline([
+      [lat, COUNTY_BOUNDS.west],
+      [lat, COUNTY_BOUNDS.east]
+    ], gridStyle).addTo(gridLayer);
+  }
+
+  // Column labels (A–N) — placed just inside north edge
+  COLS.forEach((col, c) => {
+    const lng = COUNTY_BOUNDS.west + (c + 0.5) * colStep;
+    const lat = COUNTY_BOUNDS.north - rowStep * 0.15;
+    const icon = L.divIcon({
+      className: 'grid-col-label',
+      html: `<div>${col}</div>`,
+      iconSize: [20, 16],
+      iconAnchor: [10, 8]
+    });
+    L.marker([lat, lng], { icon, interactive: false }).addTo(gridLayer);
+  });
+
+  // Row labels (1–10) — placed just inside west edge
+  for (let r = 0; r < ROWS; r++) {
+    const lat = COUNTY_BOUNDS.north - (r + 0.5) * rowStep;
+    const lng = COUNTY_BOUNDS.west  + colStep * 0.18;
+    const icon = L.divIcon({
+      className: 'grid-row-label',
+      html: `<div>${r + 1}</div>`,
+      iconSize: [16, 16],
+      iconAnchor: [8, 8]
+    });
+    L.marker([lat, lng], { icon, interactive: false }).addTo(gridLayer);
+  }
+
+  // County border rectangle
+  L.rectangle([
+    [COUNTY_BOUNDS.north, COUNTY_BOUNDS.west],
+    [COUNTY_BOUNDS.south, COUNTY_BOUNDS.east]
+  ], { color: 'rgba(255,255,255,0.6)', weight: 1.5, fill: false, dashArray: '6,4' }).addTo(gridLayer);
+}
+
+drawGrid();
+
+// ═══════════════════════════════════════════════════
+// GOOGLE MAPS LINK → COORDINATES PARSER
+// ═══════════════════════════════════════════════════
+function parseGoogleMapsLink(link) {
+  if (!link) return null;
+  link = link.trim();
+
+  // Format 1: ...@38.1234,-105.5678,... or ?q=38.1234,-105.5678
+  let m;
+
+  // @lat,lng,zoom pattern
+  m = link.match(/@(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+  if (m) return { lat: parseFloat(m[1]), lng: parseFloat(m[2]) };
+
+  // ?q=lat,lng or &q=lat,lng
+  m = link.match(/[?&]q=(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+  if (m) return { lat: parseFloat(m[1]), lng: parseFloat(m[2]) };
+
+  // place/.../@lat,lng or maps/place format
+  m = link.match(/\/(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+  if (m) return { lat: parseFloat(m[1]), lng: parseFloat(m[2]) };
+
+  // ll=lat,lng
+  m = link.match(/ll=(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+  if (m) return { lat: parseFloat(m[1]), lng: parseFloat(m[2]) };
+
+  // plain "lat,lng" (user just typed coords)
+  m = link.match(/^(-?\d+\.?\d*)[,\s]+(-?\d+\.?\d*)$/);
+  if (m) return { lat: parseFloat(m[1]), lng: parseFloat(m[2]) };
+
+  return null;
+}
+
+// ═══════════════════════════════════════════════════
+// MARKERS LAYER
+// ═══════════════════════════════════════════════════
+const markersLayer = L.layerGroup().addTo(map);
+
+function plotMarkers(points) {
+  markersLayer.clearLayers();
+  points.forEach(pt => {
+    const color = snowColor(pt.snow);
+    const label = Number.isInteger(pt.snow) ? String(pt.snow) : pt.snow.toFixed(1);
+    const { col, row } = latLngToGrid(pt.lat, pt.lng);
+
+    const icon = L.divIcon({
+      className: 'snow-marker-icon',
+      html: `<div class="snow-label" style="color:${color}">${label}</div>`,
+      iconSize: [30, 20],
+      iconAnchor: [15, 10]
+    });
+
+    const marker = L.marker([pt.lat, pt.lng], { icon });
+    marker.on('click', () => {
+      document.getElementById('ip-name').textContent   = pt.name  || '—';
+      document.getElementById('ip-snow').textContent   = pt.snow + '"';
+      document.getElementById('ip-grid').textContent   = col + row;
+      document.getElementById('ip-coords').textContent = pt.lat.toFixed(4) + ', ' + pt.lng.toFixed(4);
+      document.getElementById('info-panel').style.display = 'block';
+    });
+
+    marker.addTo(markersLayer);
+  });
+}
+
+// ═══════════════════════════════════════════════════
+// GOOGLE SHEETS INTEGRATION
+// ═══════════════════════════════════════════════════
+
+// ⚠️  Replace this placeholder with a real Google Sheets API v4 key
+// Get one free at: https://console.cloud.google.com → APIs & Services → Credentials
+const API_KEY = 'YOUR_GOOGLE_SHEETS_API_KEY_HERE';
+
+let sheetsList = [];
+let currentSheet = '';
+let autoRefreshTimer = null;
+
+async function loadSheets() {
+  const id = document.getElementById('sheet-id').value.trim();
+  if (!id) { setStatus('⚠ Paste your Spreadsheet ID first.'); return; }
+
+  setStatus('<span class="spinner"></span> Loading sheet tabs…');
+  try {
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${id}?fields=sheets.properties&key=${API_KEY}`;
+    const res  = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}: Check that the sheet is public and the API key is valid.`);
+    const json = await res.json();
+    if (json.error) throw new Error(json.error.message);
+    sheetsList = json.sheets.map(s => s.properties.title);
+    renderTabs(id);
+    if (sheetsList.length > 0) {
+      currentSheet = sheetsList[0];
+      activateTab(sheetsList[0]);
+      await loadData();
+    }
+    startAutoRefresh();
+  } catch(e) {
+    setStatus('❌ ' + e.message);
+  }
+}
+
+function renderTabs(id) {
+  const row = document.getElementById('tabs-row');
+  row.innerHTML = '<span class="tab-label">Storm:</span>';
+  sheetsList.forEach(name => {
+    const btn = document.createElement('button');
+    btn.className = 'sheet-tab';
+    btn.textContent = name;
+    btn.dataset.name = name;
+    btn.onclick = async () => {
+      currentSheet = name;
+      activateTab(name);
+      await loadData();
+    };
+    row.appendChild(btn);
+  });
+}
+
+function activateTab(name) {
+  document.querySelectorAll('.sheet-tab').forEach(b => {
+    b.classList.toggle('active', b.dataset.name === name);
+  });
+}
+
+async function loadData() {
+  const id = document.getElementById('sheet-id').value.trim();
+  if (!id || !currentSheet) { setStatus('⚠ Load a spreadsheet first.'); return; }
+
+  setStatus(`<span class="spinner"></span> Fetching "${currentSheet}"…`);
+  try {
+    const range = encodeURIComponent(`${currentSheet}!A2:D2000`);
+    const url   = `https://sheets.googleapis.com/v4/spreadsheets/${id}/values/${range}?key=${API_KEY}`;
+    const res   = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    if (json.error) throw new Error(json.error.message);
+    const rows = json.values || [];
+
+    // Expected columns:
+    // A = Name (any identifier)
+    // B = Google Maps link (e.g. https://maps.app.goo.gl/... or https://www.google.com/maps?q=...)
+    //     OR plain "lat,lng" coordinates
+    // C = Snow depth in inches (number)
+    // D = Notes (optional)
+
+    const points = [];
+    let skipped = 0;
+
+    rows.forEach(r => {
+      if (r.length < 3) return;
+      const name    = (r[0] || '').trim();
+      const mapLink = (r[1] || '').trim();
+      const snow    = parseFloat(r[2]);
+      if (!mapLink || isNaN(snow)) { skipped++; return; }
+
+      const coords = parseGoogleMapsLink(mapLink);
+      if (!coords) { skipped++; return; }
+
+      // Basic sanity check: must be inside or near Custer County, CO
+      if (coords.lat < 37.7 || coords.lat > 38.5 || coords.lng < -106 || coords.lng > -104.8) {
+        skipped++;
+        return;
+      }
+
+      points.push({ name, lat: coords.lat, lng: coords.lng, snow });
+    });
+
+    plotMarkers(points);
+
+    // Update title bar label
+    document.getElementById('export-title').textContent =
+      `Custer County Snow Report — ${currentSheet}`;
+
+    const msg = `✓ ${points.length} report(s) loaded from "${currentSheet}"`;
+    const skippedMsg = skipped > 0 ? ` · ${skipped} skipped (invalid link/coords)` : '';
+    setStatus(msg + skippedMsg + ` · ${new Date().toLocaleTimeString()}`);
+    document.getElementById('status-count').textContent = `${points.length} pts`;
+  } catch(e) {
+    setStatus('❌ ' + e.message);
+  }
+}
+
+function startAutoRefresh() {
+  if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+  autoRefreshTimer = setInterval(() => {
+    if (currentSheet) loadData();
+  }, 3 * 60 * 1000); // every 3 minutes
+}
+
+// ═══════════════════════════════════════════════════
+// DEMO DATA (no spreadsheet needed)
+// ═══════════════════════════════════════════════════
+function loadDemo() {
+  currentSheet = 'Storm 3/7/26';
+  sheetsList   = ['Storm 3/7/26', 'Storm 2/14/26', 'Storm 1/22/26'];
+
+  const row = document.getElementById('tabs-row');
+  row.innerHTML = '<span class="tab-label">Storm:</span>';
+  sheetsList.forEach((name, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'sheet-tab' + (i === 0 ? ' active' : '');
+    btn.textContent = name;
+    btn.dataset.name = name;
+    btn.onclick = () => {
+      currentSheet = name;
+      activateTab(name);
+      // Just reload demo with same pts for demo purposes
+      loadDemo();
+    };
+    row.appendChild(btn);
+  });
+
+  // Sample data matching locations visible in the original screenshot
+  // (Westcliffe area, Rosita, Silver Cliff, Galena etc.)
+  const demoPoints = [
+    // name, lat, lng, snow
+    ['Westcliffe',         38.1314, -105.4641,  1.0],
+    ['Silver Cliff',       38.1295, -105.4397,  3.0],
+    ['Rosita',             38.0680, -105.3921,  3.5],
+    ['Oak Creek Grade',    38.2050, -105.3200,  3.0],
+    ['Galena',             38.2190, -105.2050,  3.0],
+    ['Electric Peak area', 38.1760, -105.5520,  3.0],
+    ['Greenwood',          38.1900, -105.1400,  9.0],
+    ['Querida',            38.0870, -105.4000,  3.0],
+    ['DeWeese area',       38.1700, -105.4200,  2.0],
+    ['Hermit Rd area',     38.1150, -105.4900,  3.0],
+    ['Fairview',           38.0550, -105.1800,  3.0],
+    ['South county',       37.9800, -105.3000,  3.0],
+  ];
+
+  const points = demoPoints.map(d => ({
+    name: d[0], lat: d[1], lng: d[2], snow: d[3]
+  }));
+
+  plotMarkers(points);
+  document.getElementById('export-title').textContent =
+    'Custer County Snow Report — Storm 3/7/26';
+  setStatus(`✓ Demo mode: ${points.length} sample reports. Replace with your real Spreadsheet ID above.`);
+  document.getElementById('status-count').textContent = `${points.length} pts`;
+}
+
+// ═══════════════════════════════════════════════════
+// JPEG EXPORT
+// ═══════════════════════════════════════════════════
+function exportJPEG() {
+  setStatus('<span class="spinner"></span> Generating JPEG…');
+
+  // Show title overlay inside the map for export
+  const titleEl = document.getElementById('export-title');
+  titleEl.style.display = 'block';
+
+  const mapEl = document.getElementById('map-container');
+
+  domtoimage.toJpeg(mapEl, { quality: 0.95, bgcolor: '#0d1117' })
+    .then(dataUrl => {
+      titleEl.style.display = 'none';
+      const safe = currentSheet.replace(/[^a-z0-9]/gi, '_') || 'snow_report';
+      const a = document.createElement('a');
+      a.download = `Custer_Snow_Report_${safe}.jpg`;
+      a.href = dataUrl;
+      a.click();
+      setStatus(`✓ JPEG saved: Custer_Snow_Report_${safe}.jpg`);
+    })
+    .catch(err => {
+      titleEl.style.display = 'none';
+      setStatus('❌ Export failed: ' + err.message);
+    });
+}
+
+// ═══════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════
+function setStatus(html) {
+  document.getElementById('status-text').innerHTML = html;
+}
+
+// Load demo on start
+window.addEventListener('load', loadDemo);
+</script>
+</body>
+</html>

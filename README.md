@@ -1,2 +1,2 @@
-# Collaborative-Map
-The goal is to have a collaborative map people can access and edited by adding data inside google spreadsheet.
+# Colaborative Map
+Hi! This is the first time me using git and github.
