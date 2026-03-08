@@ -632,8 +632,8 @@
         const map = L.map('map', { zoomControl: false }).setView([-5.1477, 119.4327], 13);
 
         // Menggunakan CartoDB Positron untuk tampilan peta yang lebih terang, bersih & modern
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-            attribution: '&copy; OpenStreetMap &copy; CARTO'
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+            attribution: '&copy; ArcGIS'
         }).addTo(map);
 
         L.control.zoom({ position: 'bottomright' }).addTo(map);
