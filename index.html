@@ -17,6 +17,56 @@
             width: 100%;
         }
 
+        /* FILTER */
+        #filter {
+            position: absolute;
+            top: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            display: flex;
+            gap: 8px;
+            background: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        #filter button {
+            padding: 6px 14px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: bold;
+            opacity: 0.5;
+            transition: opacity 0.2s;
+        }
+
+        #filter button.active {
+            opacity: 1;
+        }
+
+        #filter button#btn-semua {
+            background: #eee;
+            color: #333;
+        }
+
+        #filter button#btn-tinggi {
+            background: red;
+            color: white;
+        }
+
+        #filter button#btn-sedang {
+            background: orange;
+            color: white;
+        }
+
+        #filter button#btn-rendah {
+            background: green;
+            color: white;
+        }
+
         /* LEGEND */
         .legend {
             background: white;
@@ -53,6 +103,14 @@
 
 <body>
 
+    <!-- TOMBOL FILTER -->
+    <div id="filter">
+        <button id="btn-semua" class="active" onclick="filterData('semua')">Semua</button>
+        <button id="btn-tinggi" onclick="filterData('tinggi')">Tinggi</button>
+        <button id="btn-sedang" onclick="filterData('sedang')">Sedang</button>
+        <button id="btn-rendah" onclick="filterData('rendah')">Rendah</button>
+    </div>
+
     <div id="map"></div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -70,7 +128,7 @@
 
 
         // =============================
-        // 2. WARNA BERDASARKAN NILAI
+        // 2. WARNA & KATEGORI
         // =============================
         function getWarna(nilai) {
             if (nilai >= 5) return "red";
@@ -79,50 +137,69 @@
             return "gray";
         }
 
+        function getKategori(nilai) {
+            if (nilai >= 5) return "tinggi";
+            if (nilai >= 3) return "sedang";
+            if (nilai >= 1) return "rendah";
+            return "tidak ada";
+        }
+
 
         // =============================
         // 3. LEGEND
         // =============================
         const legend = L.control({ position: "bottomright" });
-
         legend.onAdd = function () {
             const div = L.DomUtil.create("div", "legend");
             div.innerHTML = `
         <h4>Snow Inches</h4>
-        <div class="legend-item">
-          <div class="legend-dot" style="background: red"></div> Tinggi (≥ 5)
-        </div>
-        <div class="legend-item">
-          <div class="legend-dot" style="background: orange"></div> Sedang (≥ 3)
-        </div>
-        <div class="legend-item">
-          <div class="legend-dot" style="background: green"></div> Rendah (≥ 1)
-        </div>
-        <div class="legend-item">
-          <div class="legend-dot" style="background: gray"></div> Tidak ada data
-        </div>
+        <div class="legend-item"><div class="legend-dot" style="background:red"></div> Tinggi (≥ 5)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:orange"></div> Sedang (≥ 3)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:green"></div> Rendah (≥ 1)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:gray"></div> Tidak ada data</div>
       `;
             return div;
         };
-
         legend.addTo(map);
 
 
         // =============================
-        // 4. AMBIL DATA DARI GOOGLE SHEETS
+        // 4. SIMPAN SEMUA MARKER
+        // =============================
+        let semuaMarker = []; // menyimpan semua titik + kategorinya
+
+
+        // =============================
+        // 5. FUNGSI FILTER
+        // =============================
+        function filterData(kategori) {
+            // Update tombol aktif
+            document.querySelectorAll("#filter button").forEach(btn => btn.classList.remove("active"));
+            document.getElementById("btn-" + kategori).classList.add("active");
+
+            // Tampilkan/sembunyikan marker
+            semuaMarker.forEach(function (item) {
+                if (kategori === "semua" || item.kategori === kategori) {
+                    item.marker.addTo(map);
+                } else {
+                    map.removeLayer(item.marker);
+                }
+            });
+        }
+
+
+        // =============================
+        // 6. AMBIL DATA DARI GOOGLE SHEETS
         // =============================
         const SHEETS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS5p7OM6dkZOMm02jolXCnpsUb4F5HGJVnBL1KrSA9Q0oq-deqEckYkkeE6dDWcR1VUQL-DjAyeDP9r/pub?output=csv&t=" + new Date().getTime();
 
         fetch(SHEETS_URL)
-            .then(function (response) {
-                return response.text();
-            })
+            .then(function (response) { return response.text(); })
             .then(function (csv) {
                 const baris = csv.split("\n");
 
                 for (let i = 1; i < baris.length; i++) {
                     const kolom = baris[i].split(",");
-
                     const nama = kolom[0];
                     const lat = parseFloat(kolom[2]);
                     const lng = parseFloat(kolom[3]);
@@ -130,7 +207,9 @@
 
                     if (isNaN(lat) || isNaN(lng)) continue;
 
-                    const lingkaran = L.circleMarker([lat, lng], {
+                    const kategori = getKategori(snowInches);
+
+                    const marker = L.circleMarker([lat, lng], {
                         radius: 10,
                         fillColor: getWarna(snowInches),
                         color: "white",
@@ -138,12 +217,11 @@
                         fillOpacity: 0.8
                     });
 
-                    lingkaran.bindPopup(`
-            <b>${nama}</b><br>
-            Snow inches: ${snowInches}
-          `);
+                    marker.bindPopup(`<b>${nama}</b><br>Snow inches: ${snowInches}`);
+                    marker.addTo(map);
 
-                    lingkaran.addTo(map);
+                    // Simpan marker + kategorinya
+                    semuaMarker.push({ marker, kategori });
                 }
             })
             .catch(function (error) {
