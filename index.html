@@ -312,6 +312,39 @@
             color: var(--text-main);
         }
 
+        /* ── MAP LAYER TOGGLE ── */
+        #layer-toggle {
+            position: absolute;
+            bottom: 100px;
+            right: 24px;
+            z-index: 1000;
+            background: var(--bg-solid);
+            border: 1px solid var(--border);
+            border-radius: 30px;
+            padding: 8px 16px;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-main);
+            cursor: pointer;
+            box-shadow: var(--shadow-sm);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+            outline: none;
+        }
+
+        #layer-toggle:hover {
+            background: #f1f5f9;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        #layer-toggle svg {
+            flex-shrink: 0;
+        }
+
         /* ── FLOATING ELEMENTS ON MAP ── */
         #badge {
             position: absolute;
@@ -521,6 +554,13 @@
                 display: none;
             }
 
+            #layer-toggle {
+                bottom: 12px;
+                right: 12px;
+                padding: 6px 12px;
+                font-size: 11px;
+            }
+
             /* Hide zoom controls on mobile to save space */
         }
     </style>
@@ -542,6 +582,16 @@
             <div class="dot-live"></div>
             <span id="badge-text">Memuat...</span>
         </div>
+
+        <button id="layer-toggle" onclick="switchLayer()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="12 2 2 7 12 12 22 7 12 2" />
+                <polyline points="2 17 12 22 22 17" />
+                <polyline points="2 12 12 17 22 12" />
+            </svg>
+            <span id="layer-label">Street Map</span>
+        </button>
 
         <div id="sidebar">
             <div id="brand">
@@ -628,13 +678,36 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        // ── MAP INITIALIZATION (CLEANER BASEMAP) ──
+        // ── MAP INITIALIZATION ──
         const map = L.map('map', { zoomControl: false }).setView([-5.1477, 119.4327], 13);
 
-        // Menggunakan CartoDB Positron untuk tampilan peta yang lebih terang, bersih & modern
-        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+        // Define both basemap layers
+        const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
             attribution: '&copy; ArcGIS'
-        }).addTo(map);
+        });
+
+        const lightLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; CartoDB &copy; CARTO'
+        });
+
+        // Start with satellite
+        let currentLayer = 'satellite';
+        satelliteLayer.addTo(map);
+
+        function switchLayer() {
+            const label = document.getElementById('layer-label');
+            if (currentLayer === 'satellite') {
+                map.removeLayer(satelliteLayer);
+                lightLayer.addTo(map);
+                currentLayer = 'light';
+                label.textContent = 'Satelit';
+            } else {
+                map.removeLayer(lightLayer);
+                satelliteLayer.addTo(map);
+                currentLayer = 'satellite';
+                label.textContent = 'Peta Terang';
+            }
+        }
 
         L.control.zoom({ position: 'bottomright' }).addTo(map);
 
