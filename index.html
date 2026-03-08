@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Collaborative Map</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        #map {
+            height: 100vh;
+            width: 100%;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="map"></div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        // =============================
+        // 1. BUAT PETA
+        // =============================
+        const map = L.map('map').setView([-2.5, 118.0], 5);
+
+        // Pasang basemap ESRI
+        L.tileLayer(
+            'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+            { attribution: 'Tiles © Esri' }
+        ).addTo(map);
+
+
+        // =============================
+        // 2. DATA DUMMY
+        // =============================
+        const data = [
+            { lat: -6.200, lng: 106.816, nilai: "tinggi", nama: "Lokasi Jakarta" },
+            { lat: -7.250, lng: 112.750, nilai: "sedang", nama: "Lokasi Surabaya" },
+            { lat: -8.650, lng: 115.216, nilai: "rendah", nama: "Lokasi Bali" }
+        ];
+
+
+        // =============================
+        // 3. WARNA BERDASARKAN NILAI
+        // =============================
+        function getWarna(nilai) {
+            if (nilai === "tinggi") return "red";
+            if (nilai === "sedang") return "orange";
+            if (nilai === "rendah") return "green";
+            return "gray";
+        }
+
+
+        // =============================
+        // 4. TAMPILKAN SIMBOL DI PETA
+        // =============================
+        data.forEach(function (item) {
+            const lingkaran = L.circleMarker([item.lat, item.lng], {
+                radius: 10,
+                fillColor: getWarna(item.nilai),
+                color: "white",
+                weight: 2,
+                fillOpacity: 0.8
+            });
+
+            lingkaran.bindPopup(`
+        <b>${item.nama}</b><br>
+        Nilai: ${item.nilai}
+      `);
+
+            lingkaran.addTo(map);
+        });
+
+    </script>
+
+</body>
+
+</html>
